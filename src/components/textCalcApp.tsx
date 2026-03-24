@@ -5,7 +5,7 @@ import { Configs } from '@/conf';
 import { Button } from '@/components/ui/button';
 import { Copy, Check } from 'lucide-react';
 
-function formatSpacing(value: string): string {
+function formatSpacing(value: string, preserveTrailingSpace: boolean): string {
     return value.split('\n').map(line => {
         const commentIndex = line.indexOf('#');
         const formulaPart = commentIndex === -1 ? line : line.substring(0, commentIndex);
@@ -15,10 +15,15 @@ function formatSpacing(value: string): string {
         formatted = formatted.replace(/(\d)\s*([+\-*/xX])\s*(?=\d)/g, '$1 $2 ');
         formatted = formatted.replace(/(\d)\s*([+\-*/xX])\s*$/g, '$1 $2 ');
         formatted = formatted.replace(/(\))\s*([+\-*/xX])\s*/g, '$1 $2 ');
-        formatted = formatted.trimEnd();
+        
+        if (!preserveTrailingSpace) {
+            formatted = formatted.trimEnd();
+        }
         
         if (commentPart) {
-            const normalizedComment = commentPart.replace(/^#\s*/, '# ').trimEnd();
+            const normalizedComment = preserveTrailingSpace 
+                ? commentPart.replace(/^#\s*/, '# ')
+                : commentPart.replace(/^#\s*/, '# ').trimEnd();
             formatted = formatted ? formatted + ' ' + normalizedComment : normalizedComment;
         }
         
@@ -65,10 +70,39 @@ export function TextCalcApp() {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const prevValueRef = useRef<string>(lines.input);
     const isFormattingRef = useRef(false);
+    const trimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const cleanupTrailingSpaces = (value: string) => {
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+        
+        const trimmed = formatSpacing(value, false);
+        if (trimmed !== value) {
+            const cursorPos = textarea.selectionStart ?? 0;
+            const offset = getCursorOffset(value, trimmed, cursorPos);
+            
+            textarea.focus();
+            document.execCommand('selectAll', false);
+            document.execCommand('insertText', false, trimmed);
+            
+            isFormattingRef.current = true;
+            textarea.setSelectionRange(cursorPos + offset, cursorPos + offset);
+            
+            const resArray = calculateResults(trimmed);
+            setLines({ input: trimmed, result: resArray });
+            localStorage.setItem('calcInput', trimmed);
+            prevValueRef.current = trimmed;
+        }
+    };
 
     const handleInput = (e: ChangeEvent<HTMLTextAreaElement>) => {
         const textarea = textareaRef.current;
         if (!textarea) return;
+        
+        if (trimTimerRef.current) {
+            clearTimeout(trimTimerRef.current);
+            trimTimerRef.current = null;
+        }
         
         const value = e.target.value;
         
@@ -84,7 +118,7 @@ export function TextCalcApp() {
         const isDelete = value.length < prevValueRef.current.length;
         
         if (!isDelete) {
-            const formatted = formatSpacing(value);
+            const formatted = formatSpacing(value, true);
             if (formatted !== value) {
                 const cursorPos = textarea.selectionStart ?? 0;
                 const offset = getCursorOffset(value, formatted, cursorPos);
@@ -100,6 +134,11 @@ export function TextCalcApp() {
                 setLines({ input: formatted, result: resArray });
                 localStorage.setItem('calcInput', formatted);
                 prevValueRef.current = formatted;
+                
+                trimTimerRef.current = setTimeout(() => {
+                    const current = textareaRef.current?.value ?? '';
+                    cleanupTrailingSpaces(current);
+                }, 1000);
                 return;
             }
         }
@@ -108,6 +147,11 @@ export function TextCalcApp() {
         setLines({ input: value, result: resArray });
         localStorage.setItem('calcInput', value);
         prevValueRef.current = value;
+        
+        trimTimerRef.current = setTimeout(() => {
+            const current = textareaRef.current?.value ?? '';
+            cleanupTrailingSpaces(current);
+        }, 1000);
     };
 
     const handlePaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
@@ -116,7 +160,7 @@ export function TextCalcApp() {
         
         e.preventDefault();
         const text = e.clipboardData.getData('text');
-        const formatted = formatSpacing(text);
+        const formatted = formatSpacing(text, false);
         textarea.focus();
         document.execCommand('insertText', false, formatted);
         isFormattingRef.current = true;
