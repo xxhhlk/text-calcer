@@ -15,10 +15,11 @@ function formatSpacing(value: string): string {
         formatted = formatted.replace(/(\d)\s*([+\-*/xX])\s*(?=\d)/g, '$1 $2 ');
         formatted = formatted.replace(/(\d)\s*([+\-*/xX])\s*$/g, '$1 $2 ');
         formatted = formatted.replace(/(\))\s*([+\-*/xX])\s*/g, '$1 $2 ');
-        formatted = formatted.replace(/\s+$/, '');
+        formatted = formatted.trimEnd();
         
         if (commentPart) {
-            formatted = formatted + ' ' + commentPart.replace(/^#\s*/, '# ');
+            const normalizedComment = commentPart.replace(/^#\s*/, '# ');
+            formatted = formatted ? formatted + ' ' + normalizedComment : normalizedComment;
         }
         
         return formatted;
