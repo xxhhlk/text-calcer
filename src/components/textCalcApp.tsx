@@ -14,28 +14,10 @@ function formatSpacing(value: string): string {
         let formatted = formulaPart;
         formatted = formatted.replace(/(\d)\s*([+\-*/xX])\s*(?=\d)/g, '$1 $2 ');
         formatted = formatted.replace(/(\d)\s*([+\-*/xX])\s*$/g, '$1 $2 ');
+        formatted = formatted.replace(/(\))\s*([+\-*/xX])\s*/g, '$1 $2 ');
         
         return commentPart ? formatted + commentPart : formatted;
     }).join('\n');
-}
-
-function getCursorOffset(original: string, formatted: string, cursorPos: number): number {
-    let offset = 0;
-    let fmtIdx = 0;
-    
-    for (let origIdx = 0; origIdx < cursorPos && fmtIdx < formatted.length; origIdx++) {
-        while (fmtIdx < formatted.length && formatted[fmtIdx] !== original[origIdx]) {
-            if (formatted[fmtIdx] === ' ') {
-                offset++;
-            }
-            fmtIdx++;
-        }
-        if (fmtIdx < formatted.length) {
-            fmtIdx++;
-        }
-    }
-    
-    return offset;
 }
 
 export function TextCalcApp() {
@@ -48,43 +30,56 @@ export function TextCalcApp() {
     });
     const [copiedLineIndex, setCopiedLineIndex] = useState<number | null>(null);
     const [hoveredLineIndex, setHoveredLineIndex] = useState<number | null>(null);
-    const shouldFormatRef = useRef(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
         const operators = ['+', '-', '*', '/', 'x', 'X'];
-        if (operators.includes(e.key) || /\d/.test(e.key)) {
-            shouldFormatRef.current = true;
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+        
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const value = textarea.value;
+        const before = start > 0 ? value[start - 1] : '';
+        const after = end < value.length ? value[end] : '';
+        
+        if (operators.includes(e.key)) {
+            let insertText = e.key;
+            
+            if ((/\d|\)/.test(before)) && before !== ' ') {
+                insertText = ' ' + insertText;
+            }
+            if (['+', '*', '/', 'x', 'X'].includes(before) && e.key === '-' && before !== ' ') {
+                insertText = ' ' + insertText;
+            }
+            if (/\d/.test(after) && after !== ' ') {
+                insertText = insertText + ' ';
+            }
+            
+            if (insertText !== e.key) {
+                e.preventDefault();
+                document.execCommand('insertText', false, insertText);
+            }
+        } else if (/\d/.test(e.key)) {
+            if (['+', '*', '/', 'x', 'X'].includes(before) && before !== ' ') {
+                e.preventDefault();
+                document.execCommand('insertText', false, ' ' + e.key);
+            }
         }
     };
 
-    const handlePaste = (_e: ClipboardEvent<HTMLTextAreaElement>) => {
-        shouldFormatRef.current = true;
+    const handlePaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
+        e.preventDefault();
+        const text = e.clipboardData.getData('text');
+        const formatted = formatSpacing(text);
+        document.execCommand('insertText', false, formatted);
     };
 
     const handleInputChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
         const value = e.target.value;
-        const cursorPos = e.target.selectionStart ?? 0;
-        
-        let formattedValue = value;
-        let newCursorPos = cursorPos;
-        
-        if (shouldFormatRef.current) {
-            shouldFormatRef.current = false;
-            formattedValue = formatSpacing(value);
-            const offset = getCursorOffset(value, formattedValue, cursorPos);
-            newCursorPos = cursorPos + offset;
-        }
-        
-        const resArray = calculateResults(formattedValue);
-        setLines({ input: formattedValue, result: resArray });
-        localStorage.setItem('calcInput', formattedValue);
-        
-        if (newCursorPos !== cursorPos && textareaRef.current) {
-            requestAnimationFrame(() => {
-                textareaRef.current?.setSelectionRange(newCursorPos, newCursorPos);
-            });
-        }
+        const resArray = calculateResults(value);
+        setLines({ input: value, result: resArray });
+        localStorage.setItem('calcInput', value);
     };
     const handleCopy = (textToCopy: string, index: number) => {
         if (!textToCopy.trim()) return;
