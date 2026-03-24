@@ -1,6 +1,6 @@
 import { evaluate, format, MathType } from 'mathjs';
 import { Textarea } from "@/components/ui/textarea";
-import { useState, useRef, KeyboardEvent, ClipboardEvent } from 'react';
+import { useState, useRef, KeyboardEvent, ClipboardEvent, ChangeEvent } from 'react';
 import { Configs } from '@/conf';
 import { Button } from '@/components/ui/button';
 import { Copy, Check } from 'lucide-react';
@@ -19,6 +19,25 @@ function formatSpacing(value: string): string {
     }).join('\n');
 }
 
+function getCursorOffset(original: string, formatted: string, cursorPos: number): number {
+    let offset = 0;
+    let fmtIdx = 0;
+    
+    for (let origIdx = 0; origIdx < cursorPos && fmtIdx < formatted.length; origIdx++) {
+        while (fmtIdx < formatted.length && formatted[fmtIdx] !== original[origIdx]) {
+            if (formatted[fmtIdx] === ' ') {
+                offset++;
+            }
+            fmtIdx++;
+        }
+        if (fmtIdx < formatted.length) {
+            fmtIdx++;
+        }
+    }
+    
+    return offset;
+}
+
 export function TextCalcApp() {
     const [lines, setLines] = useState<{ input: string; result: string[] }>(() => {
         const savedInput = localStorage.getItem('calcInput') || '';
@@ -30,6 +49,7 @@ export function TextCalcApp() {
     const [copiedLineIndex, setCopiedLineIndex] = useState<number | null>(null);
     const [hoveredLineIndex, setHoveredLineIndex] = useState<number | null>(null);
     const shouldFormatRef = useRef(false);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
         const operators = ['+', '-', '*', '/', 'x', 'X'];
@@ -42,15 +62,29 @@ export function TextCalcApp() {
         shouldFormatRef.current = true;
     };
 
-    const handleInputChange = (value: string) => {
+    const handleInputChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
+        const value = e.target.value;
+        const cursorPos = e.target.selectionStart ?? 0;
+        
         let formattedValue = value;
+        let newCursorPos = cursorPos;
+        
         if (shouldFormatRef.current) {
-            formattedValue = formatSpacing(value);
             shouldFormatRef.current = false;
+            formattedValue = formatSpacing(value);
+            const offset = getCursorOffset(value, formattedValue, cursorPos);
+            newCursorPos = cursorPos + offset;
         }
-        const resArray = calculateResults(formattedValue)
+        
+        const resArray = calculateResults(formattedValue);
         setLines({ input: formattedValue, result: resArray });
         localStorage.setItem('calcInput', formattedValue);
+        
+        if (newCursorPos !== cursorPos && textareaRef.current) {
+            requestAnimationFrame(() => {
+                textareaRef.current?.setSelectionRange(newCursorPos, newCursorPos);
+            });
+        }
     };
     const handleCopy = (textToCopy: string, index: number) => {
         if (!textToCopy.trim()) return;
@@ -68,8 +102,9 @@ export function TextCalcApp() {
         <div className="container mx-auto p-4 grid grid-cols-2 gap-4 ">
             <div className="flex flex-col space-y-2 ">
                 <Textarea
+                    ref={textareaRef}
                     value={lines.input}
-                    onChange={(e) => handleInputChange(e.target.value)}
+                    onChange={handleInputChange}
                     onKeyDown={handleKeyDown}
                     onPaste={handlePaste}
                     placeholder={Configs.DefaultTxt}
