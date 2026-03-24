@@ -31,30 +31,30 @@ function formatSpacing(value: string, preserveTrailingSpace: boolean): string {
     }).join('\n');
 }
 
-function getCursorOffset(original: string, formatted: string, cursorPos: number): number {
-    let offset = 0;
-    let fmtIdx = 0;
+function getNewCursorPos(original: string, formatted: string, cursorPos: number): number {
     let origIdx = 0;
+    let fmtIdx = 0;
     
-    while (origIdx < cursorPos && fmtIdx < formatted.length) {
+    while (origIdx < cursorPos) {
+        if (fmtIdx >= formatted.length) {
+            origIdx++;
+            continue;
+        }
+        
         if (original[origIdx] === formatted[fmtIdx]) {
             origIdx++;
             fmtIdx++;
         } else if (formatted[fmtIdx] === ' ') {
-            offset++;
             fmtIdx++;
+        } else if (original[origIdx] === ' ') {
+            origIdx++;
         } else {
             origIdx++;
             fmtIdx++;
         }
     }
     
-    while (fmtIdx < formatted.length && formatted[fmtIdx] === ' ') {
-        offset++;
-        fmtIdx++;
-    }
-    
-    return offset;
+    return fmtIdx;
 }
 
 export function TextCalcApp() {
@@ -79,14 +79,14 @@ export function TextCalcApp() {
         const trimmed = formatSpacing(value, false);
         if (trimmed !== value) {
             const cursorPos = textarea.selectionStart ?? 0;
-            const offset = getCursorOffset(value, trimmed, cursorPos);
+            const newCursorPos = getNewCursorPos(value, trimmed, cursorPos);
             
             textarea.focus();
             document.execCommand('selectAll', false);
             document.execCommand('insertText', false, trimmed);
             
             isFormattingRef.current = true;
-            textarea.setSelectionRange(cursorPos + offset, cursorPos + offset);
+            textarea.setSelectionRange(newCursorPos, newCursorPos);
             
             const resArray = calculateResults(trimmed);
             setLines({ input: trimmed, result: resArray });
@@ -121,14 +121,14 @@ export function TextCalcApp() {
             const formatted = formatSpacing(value, true);
             if (formatted !== value) {
                 const cursorPos = textarea.selectionStart ?? 0;
-                const offset = getCursorOffset(value, formatted, cursorPos);
+                const newCursorPos = getNewCursorPos(value, formatted, cursorPos);
                 
                 textarea.focus();
                 document.execCommand('selectAll', false);
                 document.execCommand('insertText', false, formatted);
                 
                 isFormattingRef.current = true;
-                textarea.setSelectionRange(cursorPos + offset, cursorPos + offset);
+                textarea.setSelectionRange(newCursorPos, newCursorPos);
                 
                 const resArray = calculateResults(formatted);
                 setLines({ input: formatted, result: resArray });
