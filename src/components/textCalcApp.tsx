@@ -58,14 +58,14 @@ export function TextCalcApp() {
             
             if (insertText !== e.key) {
                 e.preventDefault();
-                textarea.setRangeText(insertText, start, end, 'end');
-                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                textarea.focus();
+                document.execCommand('insertText', false, insertText);
             }
         } else if (/\d/.test(e.key)) {
             if (['+', '*', '/', 'x', 'X'].includes(before) && before !== ' ') {
                 e.preventDefault();
-                textarea.setRangeText(' ' + e.key, start, end, 'end');
-                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                textarea.focus();
+                document.execCommand('insertText', false, ' ' + e.key);
             }
         }
     };
@@ -77,10 +77,8 @@ export function TextCalcApp() {
         e.preventDefault();
         const text = e.clipboardData.getData('text');
         const formatted = formatSpacing(text);
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        textarea.setRangeText(formatted, start, end, 'end');
-        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        textarea.focus();
+        document.execCommand('insertText', false, formatted);
     };
 
     const handleInputChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
