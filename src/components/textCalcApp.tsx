@@ -15,8 +15,13 @@ function formatSpacing(value: string): string {
         formatted = formatted.replace(/(\d)\s*([+\-*/xX])\s*(?=\d)/g, '$1 $2 ');
         formatted = formatted.replace(/(\d)\s*([+\-*/xX])\s*$/g, '$1 $2 ');
         formatted = formatted.replace(/(\))\s*([+\-*/xX])\s*/g, '$1 $2 ');
+        formatted = formatted.replace(/\s+$/, '');
         
-        return commentPart ? formatted + commentPart : formatted;
+        if (commentPart) {
+            formatted = formatted + ' ' + commentPart.replace(/^#\s*/, '# ');
+        }
+        
+        return formatted;
     }).join('\n');
 }
 
