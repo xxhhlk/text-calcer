@@ -33,7 +33,7 @@ export function TextCalcApp() {
 
     const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
         const operators = ['+', '-', '*', '/', 'x', 'X'];
-        if (operators.includes(e.key)) {
+        if (operators.includes(e.key) || /\d/.test(e.key)) {
             shouldFormatRef.current = true;
         }
     };
