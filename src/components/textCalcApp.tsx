@@ -58,21 +58,29 @@ export function TextCalcApp() {
             
             if (insertText !== e.key) {
                 e.preventDefault();
-                document.execCommand('insertText', false, insertText);
+                textarea.setRangeText(insertText, start, end, 'end');
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
             }
         } else if (/\d/.test(e.key)) {
             if (['+', '*', '/', 'x', 'X'].includes(before) && before !== ' ') {
                 e.preventDefault();
-                document.execCommand('insertText', false, ' ' + e.key);
+                textarea.setRangeText(' ' + e.key, start, end, 'end');
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
             }
         }
     };
 
     const handlePaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+        
         e.preventDefault();
         const text = e.clipboardData.getData('text');
         const formatted = formatSpacing(text);
-        document.execCommand('insertText', false, formatted);
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        textarea.setRangeText(formatted, start, end, 'end');
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
     };
 
     const handleInputChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
