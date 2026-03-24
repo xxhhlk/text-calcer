@@ -18,7 +18,7 @@ function formatSpacing(value: string): string {
         formatted = formatted.trimEnd();
         
         if (commentPart) {
-            const normalizedComment = commentPart.replace(/^#\s*/, '# ');
+            const normalizedComment = commentPart.replace(/^#\s*/, '# ').trimEnd();
             formatted = formatted ? formatted + ' ' + normalizedComment : normalizedComment;
         }
         
