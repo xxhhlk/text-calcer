@@ -1,6 +1,6 @@
 import { evaluate, format, MathType } from 'mathjs';
 import { Textarea } from "@/components/ui/textarea";
-import { useState, useRef, KeyboardEvent, ClipboardEvent, ChangeEvent } from 'react';
+import { useState, useRef, ChangeEvent, ClipboardEvent } from 'react';
 import { Configs } from '@/conf';
 import { Button } from '@/components/ui/button';
 import { Copy, Check } from 'lucide-react';
@@ -20,6 +20,32 @@ function formatSpacing(value: string): string {
     }).join('\n');
 }
 
+function getCursorOffset(original: string, formatted: string, cursorPos: number): number {
+    let offset = 0;
+    let fmtIdx = 0;
+    let origIdx = 0;
+    
+    while (origIdx < cursorPos && fmtIdx < formatted.length) {
+        if (original[origIdx] === formatted[fmtIdx]) {
+            origIdx++;
+            fmtIdx++;
+        } else if (formatted[fmtIdx] === ' ') {
+            offset++;
+            fmtIdx++;
+        } else {
+            origIdx++;
+            fmtIdx++;
+        }
+    }
+    
+    while (fmtIdx < formatted.length && formatted[fmtIdx] === ' ') {
+        offset++;
+        fmtIdx++;
+    }
+    
+    return offset;
+}
+
 export function TextCalcApp() {
     const [lines, setLines] = useState<{ input: string; result: string[] }>(() => {
         const savedInput = localStorage.getItem('calcInput') || '';
@@ -31,50 +57,51 @@ export function TextCalcApp() {
     const [copiedLineIndex, setCopiedLineIndex] = useState<number | null>(null);
     const [hoveredLineIndex, setHoveredLineIndex] = useState<number | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const prevValueRef = useRef<string>(lines.input);
+    const isFormattingRef = useRef(false);
 
-    const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-        const operators = ['+', '-', '*', '/', 'x', 'X'];
+    const handleInput = (e: ChangeEvent<HTMLTextAreaElement>) => {
         const textarea = textareaRef.current;
         if (!textarea) return;
         
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const value = textarea.value;
-        const before = start > 0 ? value[start - 1] : '';
-        const after = end < value.length ? value[end] : '';
+        const value = e.target.value;
         
-        if (operators.includes(e.key)) {
-            let insertText = e.key;
-            
-            if ((/\d|\)/.test(before)) && before !== ' ') {
-                insertText = ' ' + insertText;
-            }
-            if (['+', '*', '/', 'x', 'X'].includes(before) && e.key === '-' && before !== ' ') {
-                insertText = ' ' + insertText;
-            }
-            if (/\d/.test(after) && after !== ' ') {
-                insertText = insertText + ' ';
-            }
-            
-            if (insertText !== e.key) {
-                e.preventDefault();
+        if (isFormattingRef.current) {
+            isFormattingRef.current = false;
+            const resArray = calculateResults(value);
+            setLines({ input: value, result: resArray });
+            localStorage.setItem('calcInput', value);
+            prevValueRef.current = value;
+            return;
+        }
+        
+        const isDelete = value.length < prevValueRef.current.length;
+        
+        if (!isDelete) {
+            const formatted = formatSpacing(value);
+            if (formatted !== value) {
+                const cursorPos = textarea.selectionStart ?? 0;
+                const offset = getCursorOffset(value, formatted, cursorPos);
+                
                 textarea.focus();
-                document.execCommand('insertText', false, insertText);
-            }
-        } else if (/\d/.test(e.key)) {
-            let insertText = e.key;
-            if (['+', '*', '/', 'x', 'X'].includes(before) && before !== ' ') {
-                insertText = ' ' + insertText;
-            }
-            if (['+', '-', '*', '/', 'x', 'X'].includes(after) && after !== ' ') {
-                insertText = insertText + ' ';
-            }
-            if (insertText !== e.key) {
-                e.preventDefault();
-                textarea.focus();
-                document.execCommand('insertText', false, insertText);
+                document.execCommand('selectAll', false);
+                document.execCommand('insertText', false, formatted);
+                
+                isFormattingRef.current = true;
+                textarea.setSelectionRange(cursorPos + offset, cursorPos + offset);
+                
+                const resArray = calculateResults(formatted);
+                setLines({ input: formatted, result: resArray });
+                localStorage.setItem('calcInput', formatted);
+                prevValueRef.current = formatted;
+                return;
             }
         }
+        
+        const resArray = calculateResults(value);
+        setLines({ input: value, result: resArray });
+        localStorage.setItem('calcInput', value);
+        prevValueRef.current = value;
     };
 
     const handlePaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
@@ -86,13 +113,7 @@ export function TextCalcApp() {
         const formatted = formatSpacing(text);
         textarea.focus();
         document.execCommand('insertText', false, formatted);
-    };
-
-    const handleInputChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
-        const value = e.target.value;
-        const resArray = calculateResults(value);
-        setLines({ input: value, result: resArray });
-        localStorage.setItem('calcInput', value);
+        isFormattingRef.current = true;
     };
     const handleCopy = (textToCopy: string, index: number) => {
         if (!textToCopy.trim()) return;
@@ -112,8 +133,7 @@ export function TextCalcApp() {
                 <Textarea
                     ref={textareaRef}
                     value={lines.input}
-                    onChange={handleInputChange}
-                    onKeyDown={handleKeyDown}
+                    onChange={handleInput}
                     onPaste={handlePaste}
                     placeholder={Configs.DefaultTxt}
                     // 对齐修正 "leading-8" 与右侧 h-8 对应，确保每行高度一致
