@@ -5,12 +5,27 @@ import { Configs } from '@/conf';
 import { Button } from '@/components/ui/button';
 import { Copy, Check } from 'lucide-react';
 
+function formatSpacing(value: string): string {
+    return value.split('\n').map(line => {
+        const commentIndex = line.indexOf('#');
+        const formulaPart = commentIndex === -1 ? line : line.substring(0, commentIndex);
+        const commentPart = commentIndex === -1 ? '' : line.substring(commentIndex);
+        
+        let formatted = formulaPart;
+        formatted = formatted.replace(/(\d)\s*([+\-*/xX])\s*(?=\d)/g, '$1 $2 ');
+        formatted = formatted.replace(/(\d)\s*([+\-*/xX])\s*$/g, '$1 $2 ');
+        
+        return commentPart ? formatted + commentPart : formatted;
+    }).join('\n');
+}
+
 export function TextCalcApp() {
     const [lines, setLines] = useState<{ input: string; result: string[] }>(() => {
         const savedInput = localStorage.getItem('calcInput') || '';
+        const formattedInput = savedInput ? formatSpacing(savedInput) : '';
         return {
-            input: savedInput,
-            result: savedInput ? calculateResults(savedInput) : []
+            input: formattedInput,
+            result: formattedInput ? calculateResults(formattedInput) : []
         };
     });
     const [copiedLineIndex, setCopiedLineIndex] = useState<number | null>(null);
@@ -18,9 +33,10 @@ export function TextCalcApp() {
     const [hoveredLineIndex, setHoveredLineIndex] = useState<number | null>(null);
 
     const handleInputChange = (value: string) => {
-        const resArray = calculateResults(value)
-        setLines({ input: value, result: resArray });
-        localStorage.setItem('calcInput', value);
+        const formattedValue = formatSpacing(value);
+        const resArray = calculateResults(formattedValue)
+        setLines({ input: formattedValue, result: resArray });
+        localStorage.setItem('calcInput', formattedValue);
     };
     const handleCopy = (textToCopy: string, index: number) => {
         if (!textToCopy.trim()) return;
