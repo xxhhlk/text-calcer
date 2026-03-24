@@ -1,6 +1,6 @@
 import { evaluate, format, MathType } from 'mathjs';
 import { Textarea } from "@/components/ui/textarea";
-import { useState } from 'react';
+import { useState, useRef, KeyboardEvent, ClipboardEvent } from 'react';
 import { Configs } from '@/conf';
 import { Button } from '@/components/ui/button';
 import { Copy, Check } from 'lucide-react';
@@ -22,18 +22,32 @@ function formatSpacing(value: string): string {
 export function TextCalcApp() {
     const [lines, setLines] = useState<{ input: string; result: string[] }>(() => {
         const savedInput = localStorage.getItem('calcInput') || '';
-        const formattedInput = savedInput ? formatSpacing(savedInput) : '';
         return {
-            input: formattedInput,
-            result: formattedInput ? calculateResults(formattedInput) : []
+            input: savedInput,
+            result: savedInput ? calculateResults(savedInput) : []
         };
     });
     const [copiedLineIndex, setCopiedLineIndex] = useState<number | null>(null);
-    // --- 用于追踪鼠标悬停的行 ---
     const [hoveredLineIndex, setHoveredLineIndex] = useState<number | null>(null);
+    const shouldFormatRef = useRef(false);
+
+    const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+        const operators = ['+', '-', '*', '/', 'x', 'X'];
+        if (operators.includes(e.key)) {
+            shouldFormatRef.current = true;
+        }
+    };
+
+    const handlePaste = (_e: ClipboardEvent<HTMLTextAreaElement>) => {
+        shouldFormatRef.current = true;
+    };
 
     const handleInputChange = (value: string) => {
-        const formattedValue = formatSpacing(value);
+        let formattedValue = value;
+        if (shouldFormatRef.current) {
+            formattedValue = formatSpacing(value);
+            shouldFormatRef.current = false;
+        }
         const resArray = calculateResults(formattedValue)
         setLines({ input: formattedValue, result: resArray });
         localStorage.setItem('calcInput', formattedValue);
@@ -56,6 +70,8 @@ export function TextCalcApp() {
                 <Textarea
                     value={lines.input}
                     onChange={(e) => handleInputChange(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    onPaste={handlePaste}
                     placeholder={Configs.DefaultTxt}
                     // 对齐修正 "leading-8" 与右侧 h-8 对应，确保每行高度一致
                     className="w-full min-h-[calc(90vh-1rem)] md:text-2xl font-mono leading-8"
