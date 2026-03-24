@@ -62,10 +62,17 @@ export function TextCalcApp() {
                 document.execCommand('insertText', false, insertText);
             }
         } else if (/\d/.test(e.key)) {
+            let insertText = e.key;
             if (['+', '*', '/', 'x', 'X'].includes(before) && before !== ' ') {
+                insertText = ' ' + insertText;
+            }
+            if (['+', '-', '*', '/', 'x', 'X'].includes(after) && after !== ' ') {
+                insertText = insertText + ' ';
+            }
+            if (insertText !== e.key) {
                 e.preventDefault();
                 textarea.focus();
-                document.execCommand('insertText', false, ' ' + e.key);
+                document.execCommand('insertText', false, insertText);
             }
         }
     };
