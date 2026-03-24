@@ -138,7 +138,7 @@ export function TextCalcApp() {
                 trimTimerRef.current = setTimeout(() => {
                     const current = textareaRef.current?.value ?? '';
                     cleanupTrailingSpaces(current);
-                }, 1000);
+                }, 5000);
                 return;
             }
         }
@@ -151,7 +151,7 @@ export function TextCalcApp() {
         trimTimerRef.current = setTimeout(() => {
             const current = textareaRef.current?.value ?? '';
             cleanupTrailingSpaces(current);
-        }, 1000);
+        }, 5000);
     };
 
     const handlePaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
