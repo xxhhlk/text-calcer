@@ -34,3 +34,7 @@ yalc.lock
 
 tmp/
 
+# Box-Agent runtime & scratch directories (local only, never commit)
+.box-agent/
+.box-agent-scratch/
+
