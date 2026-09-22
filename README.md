@@ -29,6 +29,7 @@ Hover over any result line to reveal a copy icon. Simply click it to copy the en
 ### Features
 *   **Basic Arithmetic:** Performs addition, subtraction, multiplication, division, and other standard mathematical operations.  
 *   **Multiplication symbols:** For better **markdown** file compatibility, You can choose the multiplication symbol you like. "2*3=6" is equals to "2x3=6".
+*   **Standard math symbols:** Unicode and full-width operators are recognized, including `× ✕ ⋅ · ÷ ∕ ⁄ − ≤ ≥ ≠`, full-width digits/letters, superscripts (`2⁴`), and non-breaking spaces. So a pasted formula like `238 ÷ 365 × 189 =` is calculated directly. A trailing `=` at the end of a line is ignored.
 *   **Equation Solving:** Solves linear equations with a single variable 'a'.
 *   **Comment Support:** Allows users to add comments to their calculations using the `#` symbol.  The part after `#` will be treated as a comment and ignored during calculation.
 *   **Responsive Design:** Adapts to different screen sizes using a two-column layout.
@@ -124,6 +125,7 @@ This project is licensed under the [GPL3 License](LICENSE).
 ### 功能特性
 *   **基础算术：** 执行加法、减法、乘法、除法和其他标准数学运算。
 *   **乘法符号：** 可以选择你喜欢的乘法符号，为了更好的markdown兼容性，字符'x'和字符'\*'都会被视为乘法符号. "2*3=6"等价于"2x3=6".
+*   **标准数学符号：** 支持 Unicode / 全角符号，包括 `× ✕ ⋅ · ÷ ∕ ⁄ − ≤ ≥ ≠`、全角数字与字母、上标（`2⁴`）、特殊空格等。因此像 `238 ÷ 365 × 189 =` 这样直接粘贴的公式可以正常计算；行尾多余的 `=` 会被忽略。
 *   **方程求解：** 求解具有单个变量 'a' 的线性方程。
 *   **注释支持：** 允许用户使用 `#` 符号向其计算添加注释。 `#` 后面的部分将被视为注释，并在计算过程中被忽略。
 *   **格式化输出：** 以用户友好的方式显示数字。格式化输出， 除法值显示百分比。
