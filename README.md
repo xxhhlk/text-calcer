@@ -104,8 +104,6 @@
     pnpm preview --host
     ```
 
-    如果你只需要构建好的静态文件，可以直接使用 `gh-pages` 分支。该分支由 GitHub Actions 自动构建并发布 `dist` 内容，无需在本地手动构建。
-
 5.  **Docker 部署:**
 
     ```bash
@@ -223,8 +221,6 @@ Choose the number of displayed decimal places from the top bar, with a range of 
     pnpm run build
     pnpm preview --host
     ```
-
-    If you only need the built static files, use the `gh-pages` branch directly. GitHub Actions automatically builds and publishes the `dist` output there, so no manual local build is required.
 
 5.  **Docker deployment:**
 
