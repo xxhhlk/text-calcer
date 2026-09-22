@@ -1,15 +1,29 @@
 import { evaluate, format, MathType } from 'mathjs';
 import { Configs } from '@/conf';
 import { normalizeMathSymbols, stripDanglingEquals } from '@/lib/mathSymbols';
+import type { Locale, Messages } from '@/i18n/types';
 
 /** 逐行计算结果，返回与输入行号一一对应的结果数组 */
-export const calculateResults = (value: string): string[] => {
+export const calculateResults = (
+    value: string,
+    messages: Messages,
+    locale: Locale,
+    decimalPlaces: number,
+): string[] => {
+    if (value === '') {
+        return [];
+    }
+
     const inputLines = value.split('\n');
     const resultLines: string[] = [];
     for (const line of inputLines) {
+        if (line.trim() === '') {
+            resultLines.push('');
+            continue;
+        }
         const { lineWithoutComment, comment } = HandleOneLine(line);
-        if (lineWithoutComment === "") {
-            // 如果只有注释或为空行，也推送，以保持行号对应
+        if (lineWithoutComment === '') {
+            // 如果只有注释，保留注释内容以保持行号对应
             resultLines.push(comment ? `# ${comment}` : '');
             continue;
         }
@@ -18,7 +32,7 @@ export const calculateResults = (value: string): string[] => {
             resultLines.push(lineWithoutComment);
             continue;
         }
-        let result = GetLineNoCommentResult(lineWithoutComment);
+        let result = GetLineNoCommentResult(lineWithoutComment, messages, locale, decimalPlaces);
         if (comment) {
             result += `    # ${comment}`;
         }
@@ -27,27 +41,43 @@ export const calculateResults = (value: string): string[] => {
     return resultLines;
 };
 
-export function formatEvalResultNumber(evalResult: number, needPercent: boolean): string {
-    if (Number.isInteger(evalResult)) return evalResult.toString();
+export function formatEvalResultNumber(
+    evalResult: number,
+    needPercent: boolean,
+    locale: Locale,
+    decimalPlaces: number,
+): string {
+    if (Number.isInteger(evalResult)) {
+        return new Intl.NumberFormat(locale, { maximumFractionDigits: 0, useGrouping: false }).format(evalResult);
+    }
 
-    const formatted = format(evalResult, { notation: 'fixed', precision: 4 });
-    let res = parseFloat(formatted).toString();
+    const res = new Intl.NumberFormat(locale, {
+        maximumFractionDigits: decimalPlaces,
+        useGrouping: false,
+    }).format(evalResult);
 
     // 股票涨跌幅显示优化 假如比例值处在[70%, 130%]时显示具体的百分比 实际上A股日内涨跌幅是20%以内 30%能满足大部分情况
     if (Configs.ShowNumPercentDetail) {  // 通过配置开启或者关闭
         if (needPercent && evalResult < 1.3 && evalResult > 0.7) {
-            const temp = format(evalResult * 100 - 100, { notation: 'fixed', precision: 2 })
-            const fix = evalResult > 1 ? "+" : ""
-            const percent = fix + parseFloat(temp).toString() + "%";
-            res = `${res} (${percent})`;
+            const percentValue = new Intl.NumberFormat(locale, {
+                maximumFractionDigits: decimalPlaces,
+                useGrouping: false,
+            }).format(evalResult * 100 - 100);
+            const sign = evalResult > 1 ? '+' : '';
+            return `${res} (${sign}${percentValue}%)`;
         }
     }
-    return res
+    return res;
 }
 
-export function formatEvalResult(evalResult: MathType, needPercent: boolean): string {
+export function formatEvalResult(
+    evalResult: MathType,
+    needPercent: boolean,
+    locale: Locale,
+    decimalPlaces: number,
+): string {
     if (typeof evalResult === 'number') {
-        return formatEvalResultNumber(evalResult, needPercent)
+        return formatEvalResultNumber(evalResult, needPercent, locale, decimalPlaces);
     } else if (typeof evalResult === 'string') {
         return evalResult;
     } else if (typeof evalResult === 'boolean') {
@@ -64,7 +94,7 @@ export function formatEvalResult(evalResult: MathType, needPercent: boolean): st
             return format(evalResult);
         }
     }
-    return "";
+    return '';
 }
 
 
@@ -83,7 +113,12 @@ export function HandleOneLine(line: string) {
 }
 
 
-export function GetLineNoCommentResult(inpLine: string) {
+export function GetLineNoCommentResult(
+    inpLine: string,
+    messages: Messages,
+    locale: Locale,
+    decimalPlaces: number,
+) {
     let result = '';
     // 展示用文本：只去掉行尾多余的 '='，其余保留用户原始写法
     const displayLine = stripDanglingEquals(inpLine);
@@ -92,35 +127,38 @@ export function GetLineNoCommentResult(inpLine: string) {
 
     if (lineForCalc.includes('a') && lineForCalc.includes('=')) {
         try { // 尝试解方程
-            result = solveEquation(lineForCalc);
-            result = `a = ${result}` // 你的代码是 a=... 我加了空格
-        } catch (error) {
-            console.log(`error: `, error)
+            result = solveEquation(lineForCalc, messages, locale, decimalPlaces);
+            result = `${messages.calculations.equationPrefix}${result}`;
+        } catch {
             //如果solveEquation内部出错, 也不影响下面逻辑执行
-            result = `${displayLine}  # 方程求解失败, 请检查方程的格式`;
+            result = `${displayLine}  # ${messages.calculations.equationSolveFailed}`;
         }
-        return result
+        return result;
     }
 
     try {
-        const needPercent = lineForCalc.includes('/') ? true : false
+        const needPercent = lineForCalc.includes('/') ? true : false;
         const evalResult = evaluate(lineForCalc);
-        const formattedResult = formatEvalResult(evalResult, needPercent);
+        const formattedResult = formatEvalResult(evalResult, needPercent, locale, decimalPlaces);
         result = `${displayLine} = ${formattedResult}`;
-    } catch (error: any) {
-        console.log(`error: `, error)
+    } catch {
         result = `${displayLine}`; //如果发生异常 还是显示原始行
     }
-    return result
+    return result;
 }
 
 
 /** 输入一个一元一次方程 a 表示需要求解的变量 */
-export function solveEquation(equation: string): string {
+export function solveEquation(
+    equation: string,
+    messages: Messages,
+    locale: Locale,
+    decimalPlaces: number,
+): string {
     // 将方程以"="拆分为左右两部分
     const parts = equation.split('=');
     if (parts.length !== 2) {
-        throw new Error("方程格式不正确，应为 '表达式=表达式'");
+        throw new Error(messages.calculations.equationFormatError);
     }
     const [left, right] = parts;
 
@@ -139,21 +177,11 @@ export function solveEquation(equation: string): string {
 
     // 如果系数为0，则需要判断是否有无穷多解或无解
     if (coeff === 0) {
-        if (f0 === 0) return "Infinite solutions"; // 无穷多解
-        else return "No solution"; // 无解
+        if (f0 === 0) return messages.calculations.equationInfiniteSolutions;
+        else return messages.calculations.equationNoSolution;
     }
 
     // 求解 f(a) = 0 => a = -f(0) / coeff
     const result = -f0 / coeff;
-    // 如果结果是小数，保留4位小数
-    const resultStr = result.toString();
-
-    // 如果存在小数点，且小数位数大于4位，则格式化为保留4位小数
-    if (resultStr.includes('.')) {
-        const fractionalPart = resultStr.split('.')[1];
-        if (fractionalPart.length > 4) {
-            return result.toFixed(4);
-        }
-    }
-    return resultStr;
+    return formatEvalResultNumber(result, false, locale, decimalPlaces);
 }

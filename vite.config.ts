@@ -4,10 +4,24 @@ import { VitePWA } from 'vite-plugin-pwa'
 import mkcert from 'vite-plugin-mkcert';
 import path from "path"
 import tailwindcss from '@tailwindcss/vite'
+import { siteConfig } from './src/config/site'
 
 export default defineConfig({
     plugins: [
         react(), mkcert(), tailwindcss(),
+        {
+            name: 'inject-bing-site-verification',
+            transformIndexHtml(html) {
+                if (!siteConfig.bingVerifyCode) {
+                    return html
+                }
+
+                return html.replace(
+                    '</head>',
+                    `    <meta name="msvalidate.01" content="${siteConfig.bingVerifyCode}" />\n  </head>`,
+                )
+            },
+        },
         VitePWA({
             registerType: 'autoUpdate',
             includeAssets: ['pwa-512x512.png'], // 添加图标到缓存
